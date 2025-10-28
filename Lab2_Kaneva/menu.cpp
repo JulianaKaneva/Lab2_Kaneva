@@ -87,10 +87,10 @@ void Menu::showAllObjects() { //все объекты
         std::cout << "Трубы не добавлены\n";
     }
     else {
-        for (int id : pipeIds) {
-            Pipe* pipe = dataManager.getPipe(id);
+        for (int id : pipeIds) { //проход по всем объектам
+            Pipe* pipe = dataManager.getPipe(id); //указатель на трубу если она есть
             if (pipe) {
-                std::cout << pipe->toString() << "\n\n";
+                std::cout << pipe->toString() << "\n\n"; //вывод строкового представления 
             }
         }
     }
@@ -264,12 +264,11 @@ void Menu::batchEditPipes() {
     std::cout << "Введите ID труб для редактирования (через пробел): ";
     std::getline(std::cin, input);
 
-    // Ручной парсинг
-    std::stringstream ss(input);
+    std::stringstream ss(input); //поток из строки
     int id;
-    while (ss >> id) {
-        if (dataManager.pipeExists(id)) {
-            pipeIds.push_back(id);
+    while (ss >> id) { //чтение чисел из потока
+        if (dataManager.pipeExists(id)) { //если существует
+            pipeIds.push_back(id); //добавляем в вектор
         }
         else {
             std::cout << "Труба с ID " << id << " не существует.\n";

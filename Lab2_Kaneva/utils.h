@@ -4,7 +4,7 @@
 #include <string>
 #include <limits> //библиотека ограничений
 
-namespace utils { //группировка утилит
+namespace utils { //группировка утилит (public)
     double inputPositiveDouble(const std::string& prompt); //функция для ввода положительных дробных чисел
     int inputPositiveInt(const std::string& prompt); //ввод целого положительного числа
     bool inputBool(const std::string& prompt); //ввод булевого знаечния

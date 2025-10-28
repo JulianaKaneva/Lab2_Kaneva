@@ -7,7 +7,7 @@
 
 class Logger {
 private:
-    std::ofstream logFile; //сохранение в файл
+    std::ofstream logFile; //поток для сохранение в файл
 public:
     Logger(); //открытие файла
     ~Logger(); //закрытие файла

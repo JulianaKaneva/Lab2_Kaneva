@@ -1,5 +1,4 @@
 #include "cs.h"
-#include <iostream>
 #include <string>
 
 CompressorStation::CompressorStation()

@@ -1,5 +1,4 @@
 #include "pipe.h"
-#include <iostream>
 #include <string> 
 
 Pipe::Pipe() : id(0), length(0), diameter(0), underRepair(false) {} //труба с нулевыми значениями
