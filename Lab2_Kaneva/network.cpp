@@ -10,10 +10,17 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
         return false;
     }
 
-    // Проверка не участвуют ли КС уже в других соединениях
+    // Проверяем, что не соединяем КС саму с собой
+    if (startCSId == endCSId) {
+        std::cout << "Ошибка: Нельзя соединить КС саму с собой!\n";
+        return false;
+    }
+
+    // Проверка на дублирование соединения
     for (const auto& conn : connections) {
-        if (conn.second.startCSId == startCSId || conn.second.endCSId == endCSId ||
-            conn.second.startCSId == endCSId || conn.second.endCSId == startCSId) {
+        if (conn.second.startCSId == startCSId && conn.second.endCSId == endCSId) {
+            std::cout << "Ошибка: Соединение КС " << startCSId << " -> КС " << endCSId
+                << " уже существует!\n";
             return false;
         }
     }
@@ -24,7 +31,8 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
 
     // Обновление списока смежности
     adjacencyList[startCSId].push_back(endCSId);
-
+    std::cout << "Соединение создано: КС " << startCSId << " - КС " << endCSId
+        << " (труба ID " << pipeId << ")\n";
     nextConnectionId++;
     return true;
 }
@@ -46,6 +54,8 @@ bool GasNetwork::removeConnection(int pipeId) {
 
             connections.erase(it);
             usedPipes.erase(pipeId);
+            std::cout << "Соединение разорвано: труба ID " << pipeId
+                << " освобождена (КС " << startCSId << " - КС " << endCSId << ")\n";
             return true;
         }
     }

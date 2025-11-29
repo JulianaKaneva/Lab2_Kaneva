@@ -196,7 +196,7 @@ bool DataManager::connectStations(int startCSId, int endCSId, double diameter) {
         return false;
     }
 
-    // Поиск свободную трубу нужного диаметра
+    // Поиск свободной трубы нужного диаметра
     std::vector<int> availablePipes = findPipesByDiameter(diameter, true);
 
     if (availablePipes.empty()) {
@@ -208,8 +208,9 @@ bool DataManager::connectStations(int startCSId, int endCSId, double diameter) {
     int pipeId = availablePipes[0];
 
     if (network.addConnection(pipeId, startCSId, endCSId)) {
+        std::cout << "Используется труба с ID " << std::to_string(pipeId) << std::endl;
         Logger::getInstance().log("Соединение создано: КС " + std::to_string(startCSId) +
-            " -> КС " + std::to_string(endCSId) + " через трубу " +
+            " - КС " + std::to_string(endCSId) + " через трубу " +
             std::to_string(pipeId));
         return true;
     }
