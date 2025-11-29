@@ -45,6 +45,10 @@ bool DataManager::editPipe(int id, bool underRepair) { //находит трубу и меняет 
     auto it = pipes.find(id);
     if (it != pipes.end()) {
         it->second.setRepairStatus(underRepair); //ссылка на трубу по названию
+        // Если трубу поместили в ремонт - удаление соединения
+        if (underRepair) {
+            network.removeConnection(id);
+        }
         Logger::getInstance().log("Изменена труба ID: " + std::to_string(id) +
             ", новый статус: " + (underRepair ? "в ремонте" : "работает"));
         return true;
@@ -53,6 +57,8 @@ bool DataManager::editPipe(int id, bool underRepair) { //находит трубу и меняет 
 }
 
 bool DataManager::deletePipe(int id) { //удаление трубы
+    // Удаление соединений с этой трубой
+    network.removeConnection(id);
     if (pipes.erase(id) > 0) { //удалили больше 0 труб
         Logger::getInstance().log("Удалена труба ID: " + std::to_string(id));
         return true;
@@ -163,9 +169,17 @@ std::vector<int> DataManager::findPipesByDiameter(double diameter, bool onlyUnus
     std::vector<int> result;
     for (const auto& pair : pipes) {
         const Pipe& pipe = pair.second;
+
+        // Проверяем диаметр
         if (std::abs(pipe.getDiameter() - diameter) < 0.001) {
-            if (!onlyUnused || !network.isPipeUsed(pipe.getId())) {
-                result.push_back(pipe.getId());
+
+            // Проверяем что труба не в ремонте
+            if (!pipe.isUnderRepair()) {
+
+                // Проверяем что труба не используется (если нужно)
+                if (!onlyUnused || !network.isPipeUsed(pipe.getId())) {
+                    result.push_back(pipe.getId());
+                }
             }
         }
     }
@@ -329,7 +343,14 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
                 bool isActive;
 
                 file >> connId >> pipeId >> startCSId >> endCSId >> isActive;
-                network.addConnection(pipeId, startCSId, endCSId);
+                // Проверка существование КС и трубы перед созданием соединения
+                if (pipeExists(pipeId) && stationExists(startCSId) && stationExists(endCSId)) {
+                    network.addConnection(pipeId, startCSId, endCSId);
+                }
+                else {
+                    std::cout << "Предупреждение: Пропущено соединение " << connId
+                        << " - не найдены КС или труба\n";
+                }
             }
         }
         else if (section == "Next") { //секция со следующим id
