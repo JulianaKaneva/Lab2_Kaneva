@@ -13,7 +13,9 @@ struct Connection {
     int startCSId;
     int endCSId;
     bool isActive;
-
+    // Конструктор по умолчанию
+    Connection() : pipeId(0), startCSId(0), endCSId(0), isActive(false) {}
+    // Существующий конструктор
     Connection(int pipe, int start, int end)
         : pipeId(pipe), startCSId(start), endCSId(end), isActive(true) {
     }

@@ -93,7 +93,13 @@ bool DataManager::editStation(int id, int workingWorkshops) {
 }
 
 bool DataManager::deleteStation(int id) {
-    network.removeConnectionsWithCS(id); // Удаляем все соединения с этой КС
+    // Проверяем существование КС
+    if (stations.find(id) == stations.end()) {
+        return false;
+    }
+    // Удаляем соединения
+    network.removeConnectionsWithCS(id);
+
     if (stations.erase(id) > 0) {
         Logger::getInstance().log("Удалена КС ID: " + std::to_string(id));
         return true;
@@ -224,7 +230,7 @@ void DataManager::showNetwork() const {
     network.printNetwork();
 }
 
-void DataManager::topologicalSort() const {
+void DataManager::topologicalSort() {
     std::vector<int> sorted = network.topologicalSort();
 
     std::cout << "\nТопологическая сортировка КС:\n";
@@ -344,11 +350,11 @@ bool DataManager::stationExists(int id) const {
 }
 
 std::vector<int> DataManager::findStationsByUnusedPercentage(double minPercentage) const {
-    std::vector<int> result; //хранение найденных ID
+    std::vector<int> result;
     for (const auto& pair : stations) {
-        const CompressorStation& cs = pair.second; //ссылка на объект
+        const CompressorStation& cs = pair.second;
         if (cs.getTotalWorkshops() > 0) {
-            double unusedPercentage = 100.0 * (cs.getTotalWorkshops() - cs.getWorkingWorkshops()) / cs.getTotalWorkshops();
+            double unusedPercentage = cs.getUnusedPercentage();
             if (unusedPercentage >= minPercentage) {
                 result.push_back(pair.first);
             }

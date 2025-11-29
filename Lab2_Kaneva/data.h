@@ -45,7 +45,7 @@ public:
     bool connectStations(int startCSId, int endCSId, double diameter);
     void disconnectStations(int pipeId);
     void showNetwork() const;
-    void topologicalSort() const;
+    void topologicalSort();
 };
 
 #endif

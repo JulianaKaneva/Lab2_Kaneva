@@ -2,7 +2,7 @@
 #include <iostream>
 #include <algorithm>
 
-GasNetwork::GasNetwork() {}
+GasNetwork::GasNetwork() : nextConnectionId(1) {}
 
 bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
     // ѕроверка не используетс€ ли уже труба
