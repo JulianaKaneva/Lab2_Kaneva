@@ -22,6 +22,10 @@ private:
     void loadFromFile();
     void showPipeSearchMenu();
     void showStationSearchMenu();
+    void connectStations();
+    void disconnectStations();
+    void showNetwork();
+    void topologicalSort();
 
 public:
     void run();

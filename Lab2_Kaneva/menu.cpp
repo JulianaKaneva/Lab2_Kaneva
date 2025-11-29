@@ -24,6 +24,10 @@ void Menu::showMainMenu() {
         std::cout << "10. Пакетное редактирование труб\n";
         std::cout << "11. Сохранить в файл\n";
         std::cout << "12. Загрузить из файла\n";
+        std::cout << "13. Соединить КС\n";
+        std::cout << "14. Разъединить КС\n";
+        std::cout << "15. Показать сеть\n";
+        std::cout << "16. Топологическая сортировка\n";
         std::cout << "0. Выход\n";
         std::cout << "Выберите действие: ";
 
@@ -43,6 +47,10 @@ void Menu::showMainMenu() {
         case 10: batchEditPipes(); break;
         case 11: saveToFile(); break;
         case 12: loadFromFile(); break;
+        case 13: connectStations(); break; 
+        case 14: disconnectStations(); break; 
+        case 15: showNetwork(); break;      
+        case 16: topologicalSort(); break;
         case 0:
             std::cout << "Выход из программы.\n";
             return;
@@ -304,4 +312,63 @@ void Menu::loadFromFile() { //загрузка из файла
     else {
         std::cout << "Ошибка загрузки из файла: " << filename << std::endl;
     }
+}
+
+void Menu::connectStations() {
+    std::cout << "\nСоединение КС\n";
+
+    // Показываем доступные КС
+    auto stationIds = dataManager.getStationIds();
+    if (stationIds.size() < 2) {
+        std::cout << "Для соединения нужно как минимум 2 КС\n";
+        return;
+    }
+
+    std::cout << "Доступные КС:\n";
+    for (int id : stationIds) {
+        CompressorStation* station = dataManager.getStation(id);
+        if (station) {
+            std::cout << "ID " << station->getId() << ": " << station->getName();
+            if (dataManager.getNetwork().isCSInConnection(id)) {
+                std::cout << " (уже в соединении)";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    int startId = utils::inputPositiveInt("ID КС входа: ");
+    int endId = utils::inputPositiveInt("ID КС выхода: ");
+
+    if (startId == endId) {
+        std::cout << "КС входа и выхода не могут быть одинаковыми\n";
+        return;
+    }
+
+    // Выбор диаметра из допустимых значений
+    std::cout << "Доступные диаметры: 500, 700, 1000, 1400 мм\n";
+    double diameter = utils::inputPositiveDouble("Диаметр трубы (мм): ");
+
+    if (dataManager.connectStations(startId, endId, diameter)) {
+        std::cout << "КС успешно соединены!\n";
+    }
+    else {
+        std::cout << "Не удалось соединить КС. Проверьте введенные данные.\n";
+    }
+}
+
+void Menu::disconnectStations() {
+    std::cout << "\nРазъединение КС\n";
+
+    dataManager.showNetwork();
+
+    int pipeId = utils::inputPositiveInt("Введите ID трубы для разъединения: ");
+    dataManager.disconnectStations(pipeId);
+}
+
+void Menu::showNetwork() {
+    dataManager.showNetwork();
+}
+
+void Menu::topologicalSort() {
+    dataManager.topologicalSort();
 }

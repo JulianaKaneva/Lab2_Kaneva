@@ -6,11 +6,13 @@
 #include <string>
 #include "pipe.h"
 #include "cs.h"
+#include "network.h"
 
 class DataManager {
 private:
     std::unordered_map<int, Pipe> pipes; //таблица id-труба
     std::unordered_map<int, CompressorStation> stations; //таблица id-станция
+    GasNetwork network;
     int nextPipeId; //счетчик для следующего id трубы
     int nextStationId; //счетчик для следующего id станции
 
@@ -37,6 +39,13 @@ public:
     bool loadFromFile(const std::string& filename); //загрузка данных из файла
     bool pipeExists(int id) const; //проверка существования трубы
     bool stationExists(int id) const; //проверка существования станции
+    GasNetwork& getNetwork();
+    const GasNetwork& getNetwork() const;
+    std::vector<int> findPipesByDiameter(double diameter, bool onlyUnused = true) const;
+    bool connectStations(int startCSId, int endCSId, double diameter);
+    void disconnectStations(int pipeId);
+    void showNetwork() const;
+    void topologicalSort() const;
 };
 
 #endif

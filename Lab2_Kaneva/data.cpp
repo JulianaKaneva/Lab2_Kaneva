@@ -1,6 +1,8 @@
 #include "data.h"
 #include "logger.h"
 #include <fstream>
+#include <algorithm>
+#include <iostream>
 
 DataManager::DataManager() : nextPipeId(1), nextStationId(1) {} //инициализация счетчика с 1
 
@@ -24,9 +26,17 @@ std::vector<int> DataManager::getStationIds() const {
 }
 
 int DataManager::addPipe(const std::string& name, double length, double diameter, bool underRepair) { //создает, сохраняет и логирует трубу
+    // Находим максимальный ID среди существующих труб
+    int maxId = 0;
+    for (const auto& pair : pipes) {
+        if (pair.first > maxId) {
+            maxId = pair.first;
+        }
+    }
+    // Устанавливаем nextPipeId на следующий после максимального
+    nextPipeId = std::max(nextPipeId, maxId + 1);
     Pipe newPipe(nextPipeId, name, length, diameter, underRepair);
-    pipes[newPipe.getId()] = newPipe; //добавление в таблицу по id
-
+    pipes[newPipe.getId()] = newPipe;
     Logger::getInstance().log("Добавлена труба ID: " + std::to_string(newPipe.getId()));
     return nextPipeId++;
 }
@@ -56,9 +66,17 @@ Pipe* DataManager::getPipe(int id) { //ищет трубу и возвращает указатель
 }
 
 int DataManager::addStation(const std::string& name, int totalWorkshops, int workingWorkshops, double classCS) {
+    // Находим максимальный ID среди существующих станций
+    int maxId = 0;
+    for (const auto& pair : stations) {
+        if (pair.first > maxId) {
+            maxId = pair.first;
+        }
+    }
+    // Устанавливаем nextStationId на следующий после максимального
+    nextStationId = std::max(nextStationId, maxId + 1);
     CompressorStation newStation(nextStationId, name, totalWorkshops, workingWorkshops, classCS);
     stations[newStation.getId()] = newStation;
-
     Logger::getInstance().log("Добавлена КС ID: " + std::to_string(newStation.getId()));
     return nextStationId++;
 }
@@ -75,6 +93,7 @@ bool DataManager::editStation(int id, int workingWorkshops) {
 }
 
 bool DataManager::deleteStation(int id) {
+    network.removeConnectionsWithCS(id); // Удаляем все соединения с этой КС
     if (stations.erase(id) > 0) {
         Logger::getInstance().log("Удалена КС ID: " + std::to_string(id));
         return true;
@@ -125,6 +144,104 @@ void DataManager::batchEditPipes(const std::vector<int>& pipeIds, bool underRepa
         " труб, статус: " + (underRepair ? "в ремонте" : "работает"));
 }
 
+// Новые методы для работы с сетью
+GasNetwork& DataManager::getNetwork() {
+    return network;
+}
+
+const GasNetwork& DataManager::getNetwork() const {
+    return network;
+}
+
+std::vector<int> DataManager::findPipesByDiameter(double diameter, bool onlyUnused) const {
+    std::vector<int> result;
+    for (const auto& pair : pipes) {
+        const Pipe& pipe = pair.second;
+        if (std::abs(pipe.getDiameter() - diameter) < 0.001) {
+            if (!onlyUnused || !network.isPipeUsed(pipe.getId())) {
+                result.push_back(pipe.getId());
+            }
+        }
+    }
+    return result;
+}
+
+bool DataManager::connectStations(int startCSId, int endCSId, double diameter) {
+    // Проверка существование КС
+    if (!stationExists(startCSId) || !stationExists(endCSId)) {
+        std::cout << "Ошибка: одна или обе КС не существуют\n";
+        return false;
+    }
+
+    if (startCSId == endCSId) {
+        std::cout << "Ошибка: КС входа и выхода не могут быть одинаковыми\n";
+        return false;
+    }
+
+    // Проверка не участвуют ли КС в соединениях
+    if (network.isCSInConnection(startCSId) || network.isCSInConnection(endCSId)) {
+        std::cout << "Ошибка: одна или обе КС уже используются в других соединениях\n";
+        return false;
+    }
+
+    // Проверяка допустимости диаметра
+    if (diameter != 500 && diameter != 700 && diameter != 1000 && diameter != 1400) {
+        std::cout << "Ошибка: недопустимый диаметр. Используйте: 500, 700, 1000 или 1400 мм\n";
+        return false;
+    }
+
+    // Поиск свободную трубу нужного диаметра
+    std::vector<int> availablePipes = findPipesByDiameter(diameter, true);
+
+    if (availablePipes.empty()) {
+        std::cout << "Нет свободных труб диаметром " << diameter << " мм\n";
+        return false;
+    }
+
+    // Первая доступную труба
+    int pipeId = availablePipes[0];
+
+    if (network.addConnection(pipeId, startCSId, endCSId)) {
+        Logger::getInstance().log("Соединение создано: КС " + std::to_string(startCSId) +
+            " -> КС " + std::to_string(endCSId) + " через трубу " +
+            std::to_string(pipeId));
+        return true;
+    }
+
+    return false;
+}
+
+void DataManager::disconnectStations(int pipeId) {
+    if (network.removeConnection(pipeId)) {
+        Logger::getInstance().log("Соединение удалено для трубы ID: " + std::to_string(pipeId));
+    }
+    else {
+        std::cout << "Соединение с указанной трубой не найдено\n";
+    }
+}
+
+void DataManager::showNetwork() const {
+    network.printNetwork();
+}
+
+void DataManager::topologicalSort() const {
+    std::vector<int> sorted = network.topologicalSort();
+
+    std::cout << "\nТопологическая сортировка КС:\n";
+    if (sorted.empty()) {
+        std::cout << "Нет соединений или граф содержит циклы\n";
+        return;
+    }
+
+    for (size_t i = 0; i < sorted.size(); ++i) {
+        CompressorStation* station = getStation(sorted[i]);
+        if (station) {
+            std::cout << (i + 1) << ". КС ID " << station->getId() << " (\""
+                << station->getName() << "\")\n";
+        }
+    }
+}
+
 bool DataManager::saveToFile(const std::string& filename) const { //сохранение в текстовый файл
     std::ofstream file(filename); //поток для записи
     if (!file.is_open()) return false;
@@ -142,6 +259,14 @@ bool DataManager::saveToFile(const std::string& filename) const { //сохранение в
         file << cs.getId() << "\n" << cs.getName() << "\n" << cs.getTotalWorkshops() << "\n"
             << cs.getWorkingWorkshops() << "\n" << cs.getClassCS() << "\n";
     }
+    // Сохранение соединения
+    const auto& connections = network.getConnections();
+    file << "Connections " << connections.size() << "\n";
+    for (const auto& pair : connections) {
+        const Connection& conn = pair.second;
+        file << pair.first << "\n" << conn.pipeId << "\n" << conn.startCSId << "\n"
+            << conn.endCSId << "\n" << conn.isActive << "\n";
+    }
 
     file << "Next " << nextPipeId << " " << nextStationId << "\n";
 
@@ -156,6 +281,7 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
 
     pipes.clear();
     stations.clear();
+    network.clear();
 
     std::string section; //хранение названий секций
     int count;
@@ -188,6 +314,15 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
                 file >> totalWorkshops >> workingWorkshops >> classCS;
 
                 stations[id] = CompressorStation(id, name, totalWorkshops, workingWorkshops, classCS);
+            }
+        }
+        else if (section == "Connections") {
+            for (int i = 0; i < count; ++i) {
+                int connId, pipeId, startCSId, endCSId;
+                bool isActive;
+
+                file >> connId >> pipeId >> startCSId >> endCSId >> isActive;
+                network.addConnection(pipeId, startCSId, endCSId);
             }
         }
         else if (section == "Next") { //секция со следующим id
