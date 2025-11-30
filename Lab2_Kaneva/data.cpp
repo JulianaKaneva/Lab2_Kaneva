@@ -57,6 +57,11 @@ bool DataManager::editPipe(int id, bool underRepair) { //находит трубу и меняет 
 }
 
 bool DataManager::deletePipe(int id) { //удаление трубы
+    // Проверка существование трубы перед удалением
+        if (pipes.find(id) == pipes.end()) {
+            std::cout << "Труба с ID " << id << " не найдена\n";
+            return false;
+        }
     // Удаление соединений с этой трубой
     network.removeConnection(id);
     if (pipes.erase(id) > 0) { //удалили больше 0 труб
@@ -195,12 +200,6 @@ bool DataManager::connectStations(int startCSId, int endCSId, double diameter) {
 
     if (startCSId == endCSId) {
         std::cout << "Ошибка: КС входа и выхода не могут быть одинаковыми\n";
-        return false;
-    }
-
-    // Проверка не участвуют ли КС в соединениях
-    if (network.isCSInConnection(startCSId) || network.isCSInConnection(endCSId)) {
-        std::cout << "Ошибка: одна или обе КС уже используются в других соединениях\n";
         return false;
     }
 

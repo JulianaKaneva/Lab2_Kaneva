@@ -1,26 +1,26 @@
-#include "network.h"
+п»ї#include "network.h"
 #include <iostream>
 #include <algorithm>
 
 GasNetwork::GasNetwork() : nextConnectionId(1) {}
 
 bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
-    // Проверка не используется ли уже труба
+    // РџСЂРѕРІРµСЂРєР° РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р»Рё СѓР¶Рµ С‚СЂСѓР±Р°
     if (usedPipes.find(pipeId) != usedPipes.end()) {
         return false;
     }
 
-    // Проверяем, что не соединяем КС саму с собой
+    // РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РЅРµ СЃРѕРµРґРёРЅСЏРµРј РљРЎ СЃР°РјСѓ СЃ СЃРѕР±РѕР№
     if (startCSId == endCSId) {
-        std::cout << "Ошибка: Нельзя соединить КС саму с собой!\n";
+        std::cout << "РћС€РёР±РєР°: РќРµР»СЊР·СЏ СЃРѕРµРґРёРЅРёС‚СЊ РљРЎ СЃР°РјСѓ СЃ СЃРѕР±РѕР№!\n";
         return false;
     }
 
-    // Проверка на дублирование соединения
+    // РџСЂРѕРІРµСЂРєР° РЅР° РґСѓР±Р»РёСЂРѕРІР°РЅРёРµ СЃРѕРµРґРёРЅРµРЅРёСЏ
     for (const auto& conn : connections) {
         if (conn.second.startCSId == startCSId && conn.second.endCSId == endCSId) {
-            std::cout << "Ошибка: Соединение КС " << startCSId << " -> КС " << endCSId
-                << " уже существует!\n";
+            std::cout << "РћС€РёР±РєР°: РЎРѕРµРґРёРЅРµРЅРёРµ РљРЎ " << startCSId << " - РљРЎ " << endCSId
+                << " СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚!\n";
             return false;
         }
     }
@@ -29,10 +29,10 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
     connections[nextConnectionId] = conn;
     usedPipes.insert(pipeId);
 
-    // Обновление списока смежности
+    // РћР±РЅРѕРІР»РµРЅРёРµ СЃРїРёСЃРѕРєР° СЃРјРµР¶РЅРѕСЃС‚Рё
     adjacencyList[startCSId].push_back(endCSId);
-    std::cout << "Соединение создано: КС " << startCSId << " - КС " << endCSId
-        << " (труба ID " << pipeId << ")\n";
+    std::cout << "РЎРѕРµРґРёРЅРµРЅРёРµ СЃРѕР·РґР°РЅРѕ: РљРЎ " << startCSId << " - РљРЎ " << endCSId
+        << " (С‚СЂСѓР±Р° ID " << pipeId << ")\n";
     nextConnectionId++;
     return true;
 }
@@ -40,22 +40,22 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
 bool GasNetwork::removeConnection(int pipeId) {
     for (auto it = connections.begin(); it != connections.end(); ++it) {
         if (it->second.pipeId == pipeId) {
-            // Удаляение из списка смежности
+            // РЈРґР°Р»СЏРµРЅРёРµ РёР· СЃРїРёСЃРєР° СЃРјРµР¶РЅРѕСЃС‚Рё
             int startCSId = it->second.startCSId;
             int endCSId = it->second.endCSId;
 
             auto& neighbors = adjacencyList[startCSId];
             neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), endCSId), neighbors.end());
 
-            // Если у КС больше нет исходящих соединений, удаляем ее из списка смежности
+            // Р•СЃР»Рё Сѓ РљРЎ Р±РѕР»СЊС€Рµ РЅРµС‚ РёСЃС…РѕРґСЏС‰РёС… СЃРѕРµРґРёРЅРµРЅРёР№, СѓРґР°Р»СЏРµРј РµРµ РёР· СЃРїРёСЃРєР° СЃРјРµР¶РЅРѕСЃС‚Рё
             if (neighbors.empty()) {
                 adjacencyList.erase(startCSId);
             }
 
             connections.erase(it);
             usedPipes.erase(pipeId);
-            std::cout << "Соединение разорвано: труба ID " << pipeId
-                << " освобождена (КС " << startCSId << " - КС " << endCSId << ")\n";
+            std::cout << "РЎРѕРµРґРёРЅРµРЅРёРµ СЂР°Р·РѕСЂРІР°РЅРѕ: С‚СЂСѓР±Р° ID " << pipeId
+                << " РѕСЃРІРѕР±РѕР¶РґРµРЅР° (РљРЎ " << startCSId << " - РљРЎ " << endCSId << ")\n";
             return true;
         }
     }
@@ -64,12 +64,19 @@ bool GasNetwork::removeConnection(int pipeId) {
 
 bool GasNetwork::removeConnectionsWithCS(int csId) {
     bool removed = false;
+    std::vector<std::tuple<int, int, int>> removedConnections;
     for (auto it = connections.begin(); it != connections.end();) {
         if (it->second.startCSId == csId || it->second.endCSId == csId) {
-            // Освобождение трубы
+            // РЎРѕС…СЂР°РЅРµРЅРёРµРµ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± СѓРґР°Р»СЏРµРјРѕРј СЃРѕРµРґРёРЅРµРЅРёРё
+            removedConnections.push_back({
+                it->first,
+                it->second.startCSId,
+                it->second.endCSId
+            });
+            // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ С‚СЂСѓР±С‹
             usedPipes.erase(it->second.pipeId);
 
-            // Удаление из списка смежности
+            // РЈРґР°Р»РµРЅРёРµ РёР· СЃРїРёСЃРєР° СЃРјРµР¶РЅРѕСЃС‚Рё
             int startCSId = it->second.startCSId;
             int endCSId = it->second.endCSId;
 
@@ -85,6 +92,14 @@ bool GasNetwork::removeConnectionsWithCS(int csId) {
         }
         else {
             ++it;
+        }
+    }
+    if (!removedConnections.empty()) {
+        std::cout << "Р Р°Р·РѕСЂРІР°РЅС‹ СЃРѕРµРґРёРЅРµРЅРёСЏ СЃ РљРЎ ID " << csId << ":\n";
+        for (const auto& conn : removedConnections) {
+            std::cout << "РЎРѕРµРґРёРЅРµРЅРёРµ " << std::get<0>(conn)
+                << ": РљРЎ " << std::get<1>(conn)
+                << " в†’ РљРЎ " << std::get<2>(conn) << "\n";
         }
     }
     return removed;
@@ -117,7 +132,7 @@ const std::unordered_map<int, Connection>& GasNetwork::getConnections() const {
 
 std::vector<int> GasNetwork::topologicalSort() const {
     if (hasCycle()) {
-        std::cout << "Граф содержит циклы, топологическая сортировка невозможна!\n";
+        std::cout << "Р“СЂР°С„ СЃРѕРґРµСЂР¶РёС‚ С†РёРєР»С‹, С‚РѕРїРѕР»РѕРіРёС‡РµСЃРєР°СЏ СЃРѕСЂС‚РёСЂРѕРІРєР° РЅРµРІРѕР·РјРѕР¶РЅР°!\n";
         return {};
     }
 
@@ -130,7 +145,7 @@ std::vector<int> GasNetwork::topologicalSort() const {
         }
     }
 
-    // Добавление изолированных вершины
+    // Р”РѕР±Р°РІР»РµРЅРёРµ РёР·РѕР»РёСЂРѕРІР°РЅРЅС‹С… РІРµСЂС€РёРЅС‹
     for (const auto& pair : adjacencyList) {
         if (!visited[pair.first]) {
             result.push_back(pair.first);
@@ -192,16 +207,16 @@ bool GasNetwork::hasCycleUtil(int v, std::vector<bool>& visited, std::vector<boo
 }
 
 void GasNetwork::printNetwork() const {
-    std::cout << "\nГазотранспортная сеть:\n";
+    std::cout << "\nР“Р°Р·РѕС‚СЂР°РЅСЃРїРѕСЂС‚РЅР°СЏ СЃРµС‚СЊ:\n";
     if (connections.empty()) {
-        std::cout << "Нет соединений\n";
+        std::cout << "РќРµС‚ СЃРѕРµРґРёРЅРµРЅРёР№\n";
         return;
     }
 
     for (const auto& pair : connections) {
         const Connection& conn = pair.second;
-        std::cout << "Соединение ID " << pair.first << ": КС " << conn.startCSId
-            << " -> КС " << conn.endCSId << " (труба ID " << conn.pipeId << ")\n";
+        std::cout << "РЎРѕРµРґРёРЅРµРЅРёРµ ID " << pair.first << ": РљРЎ " << conn.startCSId
+            << " -> РљРЎ " << conn.endCSId << " (С‚СЂСѓР±Р° ID " << conn.pipeId << ")\n";
     }
 }
 
