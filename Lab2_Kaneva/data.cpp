@@ -344,11 +344,16 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
                 file >> connId >> pipeId >> startCSId >> endCSId >> isActive;
                 // Проверка существование КС и трубы перед созданием соединения
                 if (pipeExists(pipeId) && stationExists(startCSId) && stationExists(endCSId)) {
-                    network.addConnection(pipeId, startCSId, endCSId);
+                    Pipe* pipe = getPipe(pipeId);
+                    if (pipe && !pipe->isUnderRepair()) {
+                        network.addConnection(pipeId, startCSId, endCSId);
+                    }
+                    else {
+                        std::cout << "Пропущено соединение " << connId << " - труба в ремонте\n";
+                    }
                 }
                 else {
-                    std::cout << "Предупреждение: Пропущено соединение " << connId
-                        << " - не найдены КС или труба\n";
+                    std::cout << "Пропущено соединение " << connId << " - не найдены КС или труба\n";
                 }
             }
         }

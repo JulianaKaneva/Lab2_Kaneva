@@ -7,6 +7,7 @@
 #include <stack>
 #include "pipe.h"
 #include "cs.h"
+#include <queue>
 
 struct Connection {
     int pipeId;

@@ -131,79 +131,50 @@ const std::unordered_map<int, Connection>& GasNetwork::getConnections() const {
 }
 
 std::vector<int> GasNetwork::topologicalSort() const {
-    if (hasCycle()) {
+    if (adjacencyList.empty()) {
+        return {};
+    }
+
+    // Подсчет входящих степеней
+    std::unordered_map<int, int> inDegree;
+    for (const auto& pair : adjacencyList) {
+        inDegree[pair.first]; // Инициализация
+        for (int neighbor : pair.second) {
+            inDegree[neighbor]++;
+        }
+    }
+
+    // Алгоритм Кана
+    std::queue<int> q;
+    for (const auto& pair : inDegree) {
+        if (pair.second == 0) {
+            q.push(pair.first);
+        }
+    }
+
+    std::vector<int> result;
+    while (!q.empty()) {
+        int node = q.front();
+        q.pop();
+        result.push_back(node);
+
+        if (adjacencyList.find(node) != adjacencyList.end()) {
+            for (int neighbor : adjacencyList.at(node)) {
+                inDegree[neighbor]--;
+                if (inDegree[neighbor] == 0) {
+                    q.push(neighbor);
+                }
+            }
+        }
+    }
+
+    // Проверка на циклы
+    if (result.size() != inDegree.size()) {
         std::cout << "Граф содержит циклы, топологическая сортировка невозможна!\n";
         return {};
     }
 
-    std::vector<int> result;
-    std::vector<bool> visited(1000, false);
-
-    for (const auto& pair : adjacencyList) {
-        if (!visited[pair.first]) {
-            topologicalSortUtil(pair.first, visited, result);
-        }
-    }
-
-    // Добавление изолированных вершины
-    for (const auto& pair : adjacencyList) {
-        if (!visited[pair.first]) {
-            result.push_back(pair.first);
-        }
-    }
-
-    std::reverse(result.begin(), result.end());
     return result;
-}
-
-void GasNetwork::topologicalSortUtil(int v, std::vector<bool>& visited, std::vector<int>& stack) const {
-    visited[v] = true;
-
-    auto it = adjacencyList.find(v);
-    if (it != adjacencyList.end()) {
-        for (int neighbor : it->second) {
-            if (!visited[neighbor]) {
-                topologicalSortUtil(neighbor, visited, stack);
-            }
-        }
-    }
-
-    stack.push_back(v);
-}
-
-bool GasNetwork::hasCycle() const {
-    std::vector<bool> visited(1000, false);
-    std::vector<bool> recStack(1000, false);
-
-    for (const auto& pair : adjacencyList) {
-        if (!visited[pair.first]) {
-            if (hasCycleUtil(pair.first, visited, recStack)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-bool GasNetwork::hasCycleUtil(int v, std::vector<bool>& visited, std::vector<bool>& recStack) const {
-    if (!visited[v]) {
-        visited[v] = true;
-        recStack[v] = true;
-
-        auto it = adjacencyList.find(v);
-        if (it != adjacencyList.end()) {
-            for (int neighbor : it->second) {
-                if (!visited[neighbor] && hasCycleUtil(neighbor, visited, recStack)) {
-                    return true;
-                }
-                else if (recStack[neighbor]) {
-                    return true;
-                }
-            }
-        }
-    }
-    recStack[v] = false;
-    return false;
 }
 
 void GasNetwork::printNetwork() const {
