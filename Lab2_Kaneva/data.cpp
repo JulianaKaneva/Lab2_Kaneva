@@ -337,6 +337,7 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
             }
         }
         else if (section == "Connections") {
+            int maxConnectionId = 0;
             for (int i = 0; i < count; ++i) {
                 int connId, pipeId, startCSId, endCSId;
                 bool isActive;
@@ -356,6 +357,7 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
                     std::cout << "Пропущено соединение " << connId << " - не найдены КС или труба\n";
                 }
             }
+            network.setNextConnectionId(maxConnectionId + 1);
         }
         else if (section == "Next") { //секция со следующим id
             file >> nextPipeId >> nextStationId; //нумерация

@@ -7,7 +7,7 @@
 #include <stack>
 #include "pipe.h"
 #include "cs.h"
-#include <queue>
+#include <queue> // Очередь (FIFO) для топологической сортировки
 
 struct Connection {
     int pipeId;
@@ -24,9 +24,9 @@ struct Connection {
 
 class GasNetwork {
 private:
-    std::unordered_map<int, Connection> connections;
-    std::unordered_map<int, std::vector<int>> adjacencyList;
-    std::set<int> usedPipes;
+    std::unordered_map<int, Connection> connections; // Хранилище всех соединений
+    std::unordered_map<int, std::vector<int>> adjacencyList; // Граф в виде списка смежности (id начала - id конца)
+    std::set<int> usedPipes; // Множество ID труб, которые уже используются в соединениях
     int nextConnectionId = 1;
 
 public:
@@ -35,19 +35,15 @@ public:
     bool addConnection(int pipeId, int startCSId, int endCSId);
     bool removeConnection(int pipeId);
     bool removeConnectionsWithCS(int csId);
-    bool isPipeUsed(int pipeId) const;
+    bool isPipeUsed(int pipeId) const; //Проверки
     bool isCSInConnection(int csId) const;
-    void markPipeAsUsed(int pipeId);
+    void markPipeAsUsed(int pipeId); // Управление статусом
     void markPipeAsFree(int pipeId);
-    const std::unordered_map<int, Connection>& getConnections() const;
-    std::vector<int> topologicalSort() const;
+    const std::unordered_map<int, Connection>& getConnections() const; // Доступ к данным
+    std::vector<int> topologicalSort() const; //Работа с графом
     void printNetwork() const;
     void clear();
-
-private:
-    bool hasCycle() const;
-    bool hasCycleUtil(int v, std::vector<bool>& visited, std::vector<bool>& recStack) const;
-    void topologicalSortUtil(int v, std::vector<bool>& visited, std::vector<int>& stack) const;
+    void setNextConnectionId(int id);
 };
 
 #endif

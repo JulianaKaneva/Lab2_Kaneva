@@ -24,13 +24,13 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
             return false;
         }
     }
-
-    Connection conn(pipeId, startCSId, endCSId);
-    connections[nextConnectionId] = conn;
-    usedPipes.insert(pipeId);
+    // Создание и сохранение нового соединения
+    Connection conn(pipeId, startCSId, endCSId); //создание объекта
+    connections[nextConnectionId] = conn; //сохранение в таблицу
+    usedPipes.insert(pipeId); //труба в множество использованных
 
     // Обновление списока смежности
-    adjacencyList[startCSId].push_back(endCSId);
+    adjacencyList[startCSId].push_back(endCSId); //добавление конечной кс для начальной
     std::cout << "Соединение создано: КС " << startCSId << " - КС " << endCSId
         << " (труба ID " << pipeId << ")\n";
     nextConnectionId++;
@@ -39,21 +39,21 @@ bool GasNetwork::addConnection(int pipeId, int startCSId, int endCSId) {
 
 bool GasNetwork::removeConnection(int pipeId) {
     for (auto it = connections.begin(); it != connections.end(); ++it) {
-        if (it->second.pipeId == pipeId) {
-            // Удаляение из списка смежности
+        if (it->second.pipeId == pipeId) { //если труба совпадает
+            //Сохранение данных 
             int startCSId = it->second.startCSId;
             int endCSId = it->second.endCSId;
-
-            auto& neighbors = adjacencyList[startCSId];
-            neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), endCSId), neighbors.end());
+            //Удаление из списка смежностей
+            auto& neighbors = adjacencyList[startCSId]; //Ссылка на вектор смежных кс
+            neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), endCSId), neighbors.end()); //Удаление вхождений (remove перемещает в начало, erase удаляет ненужный конец)
 
             // Если у КС больше нет исходящих соединений, удаляем ее из списка смежности
             if (neighbors.empty()) {
                 adjacencyList.erase(startCSId);
             }
 
-            connections.erase(it);
-            usedPipes.erase(pipeId);
+            connections.erase(it); //удаление соединения из таблицы
+            usedPipes.erase(pipeId); //освобождение трубы
             std::cout << "Соединение разорвано: труба ID " << pipeId
                 << " освобождена (КС " << startCSId << " - КС " << endCSId << ")\n";
             return true;
@@ -63,11 +63,11 @@ bool GasNetwork::removeConnection(int pipeId) {
 }
 
 bool GasNetwork::removeConnectionsWithCS(int csId) {
-    bool removed = false;
-    std::vector<std::tuple<int, int, int>> removedConnections;
+    bool removed = false; //флаг на удаление
+    std::vector<std::tuple<int, int, int>> removedConnections; //хранение информации об удаленных соединениях
     for (auto it = connections.begin(); it != connections.end();) {
-        if (it->second.startCSId == csId || it->second.endCSId == csId) {
-            // Сохранениее информацию об удаляемом соединении
+        if (it->second.startCSId == csId || it->second.endCSId == csId) { //кс как начало или конец соединения
+            // Сохранение информации об удаляемом соединении
             removedConnections.push_back({
                 it->first,
                 it->second.startCSId,
@@ -79,22 +79,21 @@ bool GasNetwork::removeConnectionsWithCS(int csId) {
             // Удаление из списка смежности
             int startCSId = it->second.startCSId;
             int endCSId = it->second.endCSId;
-
             auto& neighbors = adjacencyList[startCSId];
             neighbors.erase(std::remove(neighbors.begin(), neighbors.end(), endCSId), neighbors.end());
 
-            if (neighbors.empty()) {
+            if (neighbors.empty()) { //удаление соединения
                 adjacencyList.erase(startCSId);
             }
 
-            it = connections.erase(it);
-            removed = true;
+            it = connections.erase(it); //итератор на следующий после удаленного
+            removed = true; //удаление было
         }
         else {
             ++it;
         }
     }
-    if (!removedConnections.empty()) {
+    if (!removedConnections.empty()) { //если кортеж удаления не пустой
         std::cout << "Разорваны соединения с КС ID " << csId << ":\n";
         for (const auto& conn : removedConnections) {
             std::cout << "Соединение " << std::get<0>(conn)
@@ -105,10 +104,11 @@ bool GasNetwork::removeConnectionsWithCS(int csId) {
     return removed;
 }
 
+//Проверка трубы
 bool GasNetwork::isPipeUsed(int pipeId) const {
     return usedPipes.find(pipeId) != usedPipes.end();
 }
-
+//Проверка кс
 bool GasNetwork::isCSInConnection(int csId) const {
     for (const auto& conn : connections) {
         if (conn.second.startCSId == csId || conn.second.endCSId == csId) {
@@ -136,7 +136,7 @@ std::vector<int> GasNetwork::topologicalSort() const {
     }
 
     // Подсчет входящих степеней
-    std::unordered_map<int, int> inDegree;
+    std::unordered_map<int, int> inDegree; //количество вхождений у кс
     for (const auto& pair : adjacencyList) {
         inDegree[pair.first]; // Инициализация
         for (int neighbor : pair.second) {
@@ -145,10 +145,10 @@ std::vector<int> GasNetwork::topologicalSort() const {
     }
 
     // Алгоритм Кана
-    std::queue<int> q;
+    std::queue<int> q; //очередь
     for (const auto& pair : inDegree) {
-        if (pair.second == 0) {
-            q.push(pair.first);
+        if (pair.second == 0) { 
+            q.push(pair.first); //добавляем в очередь кс с нулевой входящей степенью 
         }
     }
 
@@ -159,8 +159,8 @@ std::vector<int> GasNetwork::topologicalSort() const {
         result.push_back(node);
 
         if (adjacencyList.find(node) != adjacencyList.end()) {
-            for (int neighbor : adjacencyList.at(node)) {
-                inDegree[neighbor]--;
+            for (int neighbor : adjacencyList.at(node)) { //берем соединенные с ней кс
+                inDegree[neighbor]--; //перестаем учитывать удаленную кс
                 if (inDegree[neighbor] == 0) {
                     q.push(neighbor);
                 }
@@ -196,4 +196,11 @@ void GasNetwork::clear() {
     adjacencyList.clear();
     usedPipes.clear();
     nextConnectionId = 1;
+}
+
+// Если id меньше или равно текущему - не меняем (защита от ошибок)
+void GasNetwork::setNextConnectionId(int id) {
+    if (id > nextConnectionId) {
+        nextConnectionId = id;
+    }
 }
