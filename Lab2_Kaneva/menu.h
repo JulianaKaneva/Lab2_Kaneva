@@ -26,6 +26,8 @@ private:
     void disconnectStations();
     void showNetwork();
     void topologicalSort();
+    void calculateMaxFlow();
+    void findShortestPath();
 
 public:
     void run();

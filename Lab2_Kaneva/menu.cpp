@@ -28,6 +28,8 @@ void Menu::showMainMenu() {
         std::cout << "14. Разъединить КС\n";
         std::cout << "15. Показать сеть\n";
         std::cout << "16. Топологическая сортировка\n";
+        std::cout << "17. Расчет максимального потока\n";     
+        std::cout << "18. Поиск кратчайшего пути\n";          
         std::cout << "0. Выход\n";
         std::cout << "Выберите действие: ";
 
@@ -51,6 +53,8 @@ void Menu::showMainMenu() {
         case 14: disconnectStations(); break; 
         case 15: showNetwork(); break;      
         case 16: topologicalSort(); break;
+        case 17: calculateMaxFlow(); break;  
+        case 18: findShortestPath(); break;  
         case 0:
             std::cout << "Выход из программы.\n";
             return;
@@ -371,4 +375,14 @@ void Menu::showNetwork() {
 
 void Menu::topologicalSort() {
     dataManager.topologicalSort();
+}
+
+// Расчет максимального потока
+void Menu::calculateMaxFlow() {
+    dataManager.calculateMaxFlow();
+}
+
+// Поиск кратчайшего пути
+void Menu::findShortestPath() {
+    dataManager.findShortestPath();
 }

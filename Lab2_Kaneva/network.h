@@ -8,6 +8,8 @@
 #include "pipe.h"
 #include "cs.h"
 #include <queue> // Очередь (FIFO) для топологической сортировки
+#include <utility>
+#include <string>
 
 struct Connection {
     int pipeId;
@@ -28,6 +30,19 @@ private:
     std::unordered_map<int, std::vector<int>> adjacencyList; // Граф в виде списка смежности (id начала - id конца)
     std::set<int> usedPipes; // Множество ID труб, которые уже используются в соединениях
     int nextConnectionId = 1;
+    // Вспомогательные методы для алгоритмов
+    std::unordered_map<int, std::vector<std::pair<int, double>>>
+        getWeightedGraph(const std::unordered_map<int, Pipe>& pipes,
+            bool useCapacity = false) const;
+
+    bool bfsForMaxFlow(int source, int sink,
+        const std::unordered_map<int, std::vector<std::pair<int, double>>>& adj,
+        std::unordered_map<int, int>& parent) const;
+
+    std::vector<int> dijkstra(int start, int end,
+        const std::unordered_map<int, std::vector<std::pair<int, double>>>& weightedAdj,
+        std::unordered_map<int, double>& distances,
+        std::unordered_map<int, int>& predecessors) const;
 
 public:
     GasNetwork();
@@ -44,6 +59,16 @@ public:
     void printNetwork() const;
     void clear();
     void setNextConnectionId(int id);
+    // Новые методы для расчета максимального потока и кратчайшего пути
+    double calculateMaxFlow(int sourceKS, int sinkKS,
+        const std::unordered_map<int, Pipe>& pipes) const;
+    std::vector<int> findShortestPath(int startKS, int endKS,
+        const std::unordered_map<int, Pipe>& pipes) const;
+    // Методы для отображения информации
+    void showMaxFlowInfo(int sourceKS, int sinkKS,
+        const std::unordered_map<int, Pipe>& pipes) const;
+    void showShortestPathInfo(int startKS, int endKS,
+        const std::unordered_map<int, Pipe>& pipes) const;
 };
 
 #endif

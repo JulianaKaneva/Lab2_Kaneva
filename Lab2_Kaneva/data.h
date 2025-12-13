@@ -46,6 +46,9 @@ public:
     void disconnectStations(int pipeId);
     void showNetwork() const;
     void topologicalSort();
+    // Новые методы для работы с сетью
+    void calculateMaxFlow();
+    void findShortestPath();
 };
 
 #endif

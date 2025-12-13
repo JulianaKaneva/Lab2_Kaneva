@@ -1,6 +1,10 @@
 ﻿#include "network.h"
 #include <iostream>
 #include <algorithm>
+#include <cmath>
+#include <limits>
+#include <queue>
+#include <set>
 
 GasNetwork::GasNetwork() : nextConnectionId(1) {}
 
@@ -98,7 +102,7 @@ bool GasNetwork::removeConnectionsWithCS(int csId) {
         for (const auto& conn : removedConnections) {
             std::cout << "Соединение " << std::get<0>(conn)
                 << ": КС " << std::get<1>(conn)
-                << " → КС " << std::get<2>(conn) << "\n";
+                << " -> КС " << std::get<2>(conn) << "\n";
         }
     }
     return removed;
@@ -203,4 +207,344 @@ void GasNetwork::setNextConnectionId(int id) {
     if (id > nextConnectionId) {
         nextConnectionId = id;
     }
+}
+// Вспомогательный метод для создания взвешенного графа
+std::unordered_map<int, std::vector<std::pair<int, double>>>
+GasNetwork::getWeightedGraph(const std::unordered_map<int, Pipe>& pipes, bool useCapacity) const {
+    std::unordered_map<int, std::vector<std::pair<int, double>>> graph;
+
+    for (const auto& conn : connections) {
+        int from = conn.second.startCSId;
+        int to = conn.second.endCSId;
+        int pipeId = conn.second.pipeId;
+
+        // Ищем трубу
+        auto pipeIt = pipes.find(pipeId);
+        if (pipeIt == pipes.end()) {
+            continue;  // Труба не найдена - пропускаем
+        }
+
+        const Pipe& pipe = pipeIt->second;
+        double weight;
+
+        if (useCapacity) {
+            // Для максимального потока используем пропускную способность
+            weight = pipe.getCapacity();
+        }
+        else {
+            // Для кратчайшего пути используем вес (длину)
+            weight = pipe.getWeight();
+        }
+
+        // Добавляем ребро в граф
+        graph[from].push_back({ to, weight });
+    }
+
+    return graph;
+}
+
+// BFS для алгоритма Форда-Фалкерсона
+bool GasNetwork::bfsForMaxFlow(int source, int sink,
+    const std::unordered_map<int, std::vector<std::pair<int, double>>>& adj,
+    std::unordered_map<int, int>& parent) const {
+    std::set<int> visited;
+    std::queue<int> q;
+
+    q.push(source);
+    visited.insert(source);
+    parent[source] = -1;
+
+    while (!q.empty()) {
+        int current = q.front();
+        q.pop();
+
+        auto it = adj.find(current);
+        if (it == adj.end()) continue;
+
+        for (const auto& neighbor : it->second) {
+            int next = neighbor.first;
+            double capacity = neighbor.second;
+
+            if (visited.find(next) == visited.end() && capacity > 0.0001) {
+                parent[next] = current;
+                if (next == sink) return true;
+
+                q.push(next);
+                visited.insert(next);
+            }
+        }
+    }
+
+    return false;
+}
+
+// Алгоритм Дейкстры
+std::vector<int> GasNetwork::dijkstra(int start, int end,
+    const std::unordered_map<int, std::vector<std::pair<int, double>>>& weightedAdj,
+    std::unordered_map<int, double>& distances,
+    std::unordered_map<int, int>& predecessors) const {
+    // Приоритетная очередь для эффективного выбора вершины
+    using Pair = std::pair<double, int>;
+    std::priority_queue<Pair, std::vector<Pair>, std::greater<Pair>> pq;
+
+    // Инициализация
+    for (const auto& node : weightedAdj) {
+        distances[node.first] = std::numeric_limits<double>::infinity();
+        predecessors[node.first] = -1;
+    }
+
+    distances[start] = 0.0;
+    pq.push({ 0.0, start });
+
+    while (!pq.empty()) {
+        double currentDist = pq.top().first;
+        int current = pq.top().second;
+        pq.pop();
+
+        if (current == end) break;
+
+        // Пропускаем если нашли лучший путь
+        if (currentDist > distances[current] + 0.0001) continue;
+
+        auto it = weightedAdj.find(current);
+        if (it == weightedAdj.end()) continue;
+
+        for (const auto& neighbor : it->second) {
+            int next = neighbor.first;
+            double weight = neighbor.second;
+
+            // Пропускаем ребра с бесконечным весом
+            if (std::isinf(weight)) continue;
+
+            double newDist = distances[current] + weight;
+
+            if (newDist < distances[next] - 0.0001) {
+                distances[next] = newDist;
+                predecessors[next] = current;
+                pq.push({ newDist, next });
+            }
+        }
+    }
+
+    // Восстанавливаем путь
+    std::vector<int> path;
+    if (std::isinf(distances[end])) {
+        return path;  // Путь не найден
+    }
+
+    for (int v = end; v != -1; v = predecessors[v]) {
+        path.push_back(v);
+    }
+
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+// Расчет максимального потока (Форд-Фалкерсон)
+double GasNetwork::calculateMaxFlow(int sourceKS, int sinkKS,
+    const std::unordered_map<int, Pipe>& pipes) const {
+    if (sourceKS == sinkKS) return 0.0;
+
+    // Строим остаточную сеть
+    auto originalGraph = getWeightedGraph(pipes, true);
+    std::unordered_map<int, std::vector<std::pair<int, double>>> residualGraph;
+
+    // Инициализируем остаточную сеть
+    for (const auto& node : originalGraph) {
+        int u = node.first;
+        for (const auto& edge : node.second) {
+            int v = edge.first;
+            double capacity = edge.second;
+            residualGraph[u].push_back({ v, capacity });
+            residualGraph[v].push_back({ u, 0.0 });
+        }
+    }
+
+    std::unordered_map<int, int> parent;
+    double maxFlow = 0.0;
+    int iteration = 0;
+    const int MAX_ITERATIONS = 1000;
+
+    while (bfsForMaxFlow(sourceKS, sinkKS, residualGraph, parent) && iteration < MAX_ITERATIONS) {
+        iteration++;
+
+        // Находим минимальную пропускную способность на пути
+        double pathFlow = std::numeric_limits<double>::infinity();
+        for (int v = sinkKS; v != sourceKS; v = parent[v]) {
+            int u = parent[v];
+
+            // Ищем ребро u->v
+            bool found = false;
+            auto& edges = residualGraph[u];
+            for (auto& edge : edges) {
+                if (edge.first == v) {
+                    pathFlow = std::min(pathFlow, edge.second);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                pathFlow = 0.0;
+                break;
+            }
+        }
+
+        if (pathFlow < 0.0001) break;
+        // Обновляем остаточные пропускные способности
+        for (int v = sinkKS; v != sourceKS; v = parent[v]) {
+            int u = parent[v];
+
+            // Уменьшаем пропускную способность на прямом ребре
+            auto& forwardEdges = residualGraph[u];
+            for (auto& edge : forwardEdges) {
+                if (edge.first == v) {
+                    edge.second -= pathFlow;
+                    break;
+                }
+            }
+            // Увеличиваем пропускную способность на обратном ребре
+            auto& backwardEdges = residualGraph[v];
+            bool backwardFound = false;
+            for (auto& edge : backwardEdges) {
+                if (edge.first == u) {
+                    edge.second += pathFlow;
+                    backwardFound = true;
+                    break;
+                }
+            }
+            if (!backwardFound) {
+                residualGraph[v].push_back({ u, pathFlow });
+            }
+        }
+        maxFlow += pathFlow;
+        parent.clear();
+    }
+
+    return maxFlow;
+}
+
+// Поиск кратчайшего пути (Дейкстра)
+std::vector<int> GasNetwork::findShortestPath(int startKS, int endKS,
+    const std::unordered_map<int, Pipe>& pipes) const {
+    if (startKS == endKS) {
+        return std::vector<int>{startKS};
+    }
+
+    // Проверяем, что КС подключены к сети
+    bool startExists = false, endExists = false;
+    for (const auto& conn : connections) {
+        if (conn.second.startCSId == startKS || conn.second.endCSId == startKS) startExists = true;
+        if (conn.second.startCSId == endKS || conn.second.endCSId == endKS) endExists = true;
+    }
+
+    if (!startExists || !endExists) {
+        return std::vector<int>();
+    }
+
+    // Строим взвешенный граф
+    auto weightedGraph = getWeightedGraph(pipes, false);
+
+    // Добавляем изолированные вершины
+    if (weightedGraph.find(startKS) == weightedGraph.end()) {
+        weightedGraph[startKS] = std::vector<std::pair<int, double>>();
+    }
+    if (weightedGraph.find(endKS) == weightedGraph.end()) {
+        weightedGraph[endKS] = std::vector<std::pair<int, double>>();
+    }
+
+    std::unordered_map<int, double> distances;
+    std::unordered_map<int, int> predecessors;
+
+    return dijkstra(startKS, endKS, weightedGraph, distances, predecessors);
+}
+
+// Отображение информации о максимальном потоке
+void GasNetwork::showMaxFlowInfo(int sourceKS, int sinkKS,
+    const std::unordered_map<int, Pipe>& pipes) const {
+    std::cout << "Расчет максимального потока\n";
+    std::cout << "Источник: КС " << sourceKS << "\n";
+    std::cout << "Сток: КС " << sinkKS << "\n";
+
+    if (connections.empty()) {
+        std::cout << "В сети нет соединений! Максимальный поток = 0\n";
+        return;
+    }
+
+    if (sourceKS == sinkKS) {
+        std::cout << "Ошибка: источник и сток не могут совпадать!\n";
+        return;
+    }
+
+    std::cout << "Информация о трубах в сети\n";
+    bool hasValidPipes = false;
+    for (const auto& conn : connections) {
+        int pipeId = conn.second.pipeId;
+        auto pipeIt = pipes.find(pipeId);
+        if (pipeIt != pipes.end()) {
+            const Pipe& pipe = pipeIt->second;
+            std::cout << "Труба ID " << pipeId << ": ";
+            std::cout << "КС " << conn.second.startCSId << " -> КС " << conn.second.endCSId;
+            std::cout << " | Пропускная способность: " << pipe.getCapacity() << " усл. ед.";
+            if (pipe.isUnderRepair()) std::cout << " [В РЕМОНТЕ]";
+            std::cout << "\n";
+            hasValidPipes = true;
+        }
+    }
+
+    if (!hasValidPipes) {
+        std::cout << "Нет доступных труб для транспортировки!\n";
+        return;
+    }
+
+    std::cout << "Расчет максимального потока\n";
+    double maxFlow = calculateMaxFlow(sourceKS, sinkKS, pipes);
+    std::cout << "Максимальный поток: " << maxFlow << " усл. ед.\n";
+
+    if (maxFlow < 0.0001) {
+        std::cout << "Статус: нет пути - невозможно доставить газ от источника к стоку\n";
+    }
+    else if (maxFlow < 1.0) {
+        std::cout << "Статус: малый поток - ограниченная пропускная способность\n";
+    }
+    else {
+        std::cout << "Статус: путь есть - газ может транспортироваться\n";
+    }
+}
+
+// Отображение информации о кратчайшем пути
+void GasNetwork::showShortestPathInfo(int startKS, int endKS,
+    const std::unordered_map<int, Pipe>& pipes) const {
+    std::cout << "Поиск кратчайшего пути\n";
+
+    std::vector<int> path = findShortestPath(startKS, endKS, pipes);
+
+    if (path.empty()) {
+        std::cout << "Путь не найден\n";
+        return;
+    }
+
+    // Расчет длины пути
+    double totalLength = 0.0;
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        for (const auto& conn : connections) {
+            if (conn.second.startCSId == path[i] && conn.second.endCSId == path[i + 1]) {
+                auto pipeIt = pipes.find(conn.second.pipeId);
+                if (pipeIt != pipes.end() && !pipeIt->second.isUnderRepair()) {
+                    totalLength += pipeIt->second.getLength();
+                }
+                break;
+            }
+        }
+    }
+
+    std::cout << "Длина пути: " << totalLength << " км\n";
+    std::cout << "Количество труб в пути: " << (path.size() - 1) << "\n";
+    std::cout << "\nМаршрут: ";
+
+    for (size_t i = 0; i < path.size(); ++i) {
+        std::cout << "КС" << path[i];
+        if (i < path.size() - 1) std::cout << " -> ";
+    }
+    std::cout << "\n";
 }

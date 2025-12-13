@@ -22,6 +22,9 @@ public: //Методы доступны извне класса
     // изменение
     void setRepairStatus(bool status);  // Изменение статуса
     std::string toString() const; //текстовое представление трубы для вывода
+    // Новые методы для расчета
+    double getCapacity() const;       // Пропускная способность
+    double getWeight() const;         // Вес для пути
 };
 
 #endif

@@ -3,6 +3,8 @@
 #include <fstream>
 #include <algorithm>
 #include <iostream>
+#include "utils.h"
+#include <cmath>
 
 DataManager::DataManager() : nextPipeId(1), nextStationId(1) {} //инициализация счетчика с 1
 
@@ -181,7 +183,7 @@ std::vector<int> DataManager::findPipesByDiameter(double diameter, bool onlyUnus
             // Проверяем что труба не в ремонте
             if (!pipe.isUnderRepair()) {
 
-                // Проверяем что труба не используется (если нужно)
+                // Проверяем что труба не используется
                 if (!onlyUnused || !network.isPipeUsed(pipe.getId())) {
                     result.push_back(pipe.getId());
                 }
@@ -254,7 +256,7 @@ void DataManager::topologicalSort() {
     }
 
     for (size_t i = 0; i < sorted.size(); ++i) {
-        CompressorStation* station = getStation(sorted[i]);
+        CompressorStation* station = getStation(sorted[i]); //указатель на кс
         if (station) {
             std::cout << (i + 1) << ". КС ID " << station->getId() << " (\""
                 << station->getName() << "\")\n";
@@ -343,6 +345,9 @@ bool DataManager::loadFromFile(const std::string& filename) { //восстанавливает 
                 bool isActive;
 
                 file >> connId >> pipeId >> startCSId >> endCSId >> isActive;
+                if (connId > maxConnectionId) {
+                    maxConnectionId = connId;
+                }
                 // Проверка существование КС и трубы перед созданием соединения
                 if (pipeExists(pipeId) && stationExists(startCSId) && stationExists(endCSId)) {
                     Pipe* pipe = getPipe(pipeId);
@@ -389,4 +394,79 @@ std::vector<int> DataManager::findStationsByUnusedPercentage(double minPercentag
         }
     }
     return result;
+}
+
+void DataManager::calculateMaxFlow() {
+    std::cout << "Расчет максимального потока\n";
+
+    // Доступные КС
+    auto stationIds = getStationIds();
+    if (stationIds.size() < 2) {
+        std::cout << "Для расчета потока нужно как минимум 2 КС\n";
+        return;
+    }
+
+    std::cout << "Доступные КС:\n";
+    for (int id : stationIds) {
+        CompressorStation* station = getStation(id);
+        if (station) {
+            std::cout << "ID " << station->getId() << ": " << station->getName();
+            if (network.isCSInConnection(id)) {
+                std::cout << " (в сети)";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    int sourceId = utils::inputPositiveInt("Введите ID КС-источника: ");
+    int sinkId = utils::inputPositiveInt("Введите ID КС-стока: ");
+
+    if (sourceId == sinkId) {
+        std::cout << "Источник и сток не могут совпадать!\n";
+        return;
+    }
+
+    if (!stationExists(sourceId) || !stationExists(sinkId)) {
+        std::cout << "Одна или обе КС не существуют!\n";
+        return;
+    }
+
+    network.showMaxFlowInfo(sourceId, sinkId, pipes);
+}
+
+// Поиск кратчайшего пути
+void DataManager::findShortestPath() {
+    std::cout << "Поиск кратчайшего пути\n";
+
+    auto stationIds = getStationIds();
+    if (stationIds.size() < 2) {
+        std::cout << "Для поиска пути нужно как минимум 2 КС\n";
+        return;
+    }
+
+    std::cout << "Доступные КС:\n";
+    for (int id : stationIds) {
+        CompressorStation* station = getStation(id);
+        if (station) {
+            std::cout << "ID " << station->getId() << ": " << station->getName();
+            if (network.isCSInConnection(id)) {
+                std::cout << " (в сети)";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    int startId = utils::inputPositiveInt("Введите ID начальной КС: ");
+    int endId = utils::inputPositiveInt("Введите ID конечной КС: ");
+
+    if (startId == endId) {
+        std::cout << "Начальная и конечная КС не могут совпадать!\n";
+        return;
+    }
+    if (!stationExists(startId) || !stationExists(endId)) {
+        std::cout << "Одна или обе КС не существуют!\n";
+        return;
+    }
+
+    network.showShortestPathInfo(startId, endId, pipes);
 }
